@@ -48,12 +48,12 @@ public:
 
     //棋盘状态的主要的数组  记录地雷的情况
     //x y
-    int st[35][35]{};
+    int st[99][99]{};
 
     //记录格子是否已经开过了
     //x y
     //0 没有翻  -1 记录  1 翻开的
-    int used[35][35]{};
+    int used[99][99]{};
 
     //向8个方向扩展
     // 1  2  3
@@ -185,9 +185,6 @@ public:
     //显示分数榜
     void show_score_table();
 
-    //创建score文件
-    static void create_file();
-
     //恢复排行榜
     void restore_score_table();
 
@@ -200,14 +197,6 @@ public:
 
     //计时器守护程序
     static void timer_holder();
-    // tt.clearTime();
-    // tt.start();
-    //
-    // tt.pause();
-    //
-    // tt.get_time();
-    //
-    //
 
     //最后退出
     static void end_it();

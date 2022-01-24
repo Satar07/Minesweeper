@@ -6,7 +6,7 @@
 string double_to_string(double x) {
     string res;
     res = int_to_string(static_cast<int>(x)) + '.'
-          + int_to_string(static_cast<int>((x * 100)) % 100);
+          + int_to_string(static_cast<int>((x * 100)) % 100);//保留2位小数
     return res;
 }
 

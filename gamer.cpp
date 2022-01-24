@@ -106,14 +106,15 @@ void gamer::message(const CHAR *string1) const {
 }
 
 void gamer::printMenu() {
-    init_console(25, 15);
+    init_console(25, 15); //确定菜单窗口大小
+    clear();
     cout << "\n"
             "        <新游戏>\n\n\n"
             "        <排行榜>\n\n\n"
             "       <难度选择>\n\n\n"
             "         <退出>\n\n\n";
     IS_OLD_GAME_EXIST = detect_static_is_exit();
-    if (IS_OLD_GAME_EXIST) {
+    if (IS_OLD_GAME_EXIST) {  //如果检测到有旧的游戏存盘 就增加这个选项
         cout << "        <旧游戏>";
     }
 }
@@ -121,22 +122,30 @@ void gamer::printMenu() {
 void gamer::clear() {
 //直接用cls好像会卡掉 没有办法继续获取事件了
 //就用这么暴力的方法吧。。
-    point(0, 0);
-    for (int i = 0; i < 5000 + 1; ++i) {
-        putchar(' ');
+    point(0, 0);  //归中光标
+    for (int i = 0; i < 8000 + 1; ++i) {
+        putchar(' ');//暴力覆盖
     }
     point(0, 0);
 }
 
 void gamer::gameHolder() {
-    IS_ON_GAME = true;
-    timer::start();
-    thread timerHolder(timer_holder);
+    IS_ON_GAME = true;//开始游戏状态
+    timer::start();//计时器开始计时
+    thread timerHolder(timer_holder);//开始计时器线程
     init_console();
-    update();
-    clearLine(board_height + 1);
+    update();//打印棋盘
+    clearLine(board_height + 1);//为计时器腾出空间
     clearLine(board_height + 2);
-    cout << "  <quit>         <menu>   ";
+
+    //2022.1.19 update
+    //cout << "  <quit>         <menu>   ";
+
+    point(static_cast<short>(2), static_cast<short>(board_height + 2));
+    printf("<quit>");//2~8
+    point(static_cast<short>(width - 8), static_cast<short>(board_height + 2));
+    printf("<menu>");//width-8~width-3
+
     bool fir = true;
     while (true) {
         ReadConsoleInput(hInput, &inRec, 1, &numRead); // 读取1个输入事件
@@ -145,13 +154,13 @@ void gamer::gameHolder() {
             int x = pos.X / 2 - 2, y = pos.Y - 1;  //转换坐标
             if (rt % 2 == 0) {//右键单击 或双击（第二次判断快的话就是双击了）
                 if (is_in_board(x, y)) {
-                    sign_it(x, y);
+                    sign_it(x, y);//标记格子
                     update();
                 }
                 continue;
             }
             if (rt == 1) {
-                double_flip(x, y);
+                double_flip(x, y);//双击打开附近能翻开的格子的功能
             }
             if (rt % 2 == 1) {//左键单击 或双击
                 //点到游戏本体
@@ -163,14 +172,16 @@ void gamer::gameHolder() {
                         init_mine();
                         fir = false;
                     }
-                    open_it(x, y);
+                    open_it(x, y);//翻开格子
                     update();
+
                     if (IS_LOSE) {
                         IS_ON_GAME = false;
                         timerHolder.join();
                         timer::pause();
                         you_are_lose();//显示你炸了
                     }
+
                     if (had_open + mine_num >= board_width * board_height) {
                         IS_ON_GAME = false;
                         timerHolder.join();
@@ -178,30 +189,30 @@ void gamer::gameHolder() {
                         you_are_win();//显示你赢了
                         IS_WIN = true;
                     }
+
                     if (IS_WIN or IS_LOSE) {
-                        clear_game_state();
+                        clear_game_state();//清空游戏状态 并结束游戏主进程
                         return;
                     }
 
-                } else if (pos.Y == board_height + 2
-                           and ((pos.X >= 3 and pos.X <= 6) or (pos.X >= 17 and pos.X <= 21))) {//其他功能
-                    IS_ON_GAME = false;
+                } else if (pos.Y == board_height + 2 //点到游戏时的菜单
+                           and ((pos.X >= 2 and pos.X <= 8) or (pos.X >= width - 8 and pos.X <= width - 3))) {//其他功能
+                    IS_ON_GAME = false;//结束游戏状态
                     timerHolder.join();
 
-                    if (pos.X >= 3 and pos.X <= 6) {//exit
+                    if (pos.X >= 2 and pos.X <= 8) {  //exit
                         if (fir) exit_the_program();
                         else quit_the_game_during_gaming(true);
                         return;
                     }
 
-                    if (pos.X >= 17 and pos.X <= 21) {//menu
+                    if (pos.X >= width - 8 and pos.X <= width - 3) {  //menu
                         if (!fir) quit_the_game_during_gaming(false);
                         clear_game_state();
                         return;
                     }
                     continue;
-
-                } else continue;
+                }
             }
         }
     }
@@ -212,14 +223,16 @@ void gamer::init_mine() {
     //(9,4)  (9,22)
     //第一次翻格子
     int total = board_height * board_width;
-    int temp_st[1225];
-    memset(temp_st, 0, sizeof(temp_st));
+    vector<int> temp_st;//2022.1.19 update
+    //memset(temp_st, 0, sizeof(temp_st));
+    temp_st.reserve(total);
+    temp_st.resize(total);
     for (int i = 0; i < mine_num; ++i) {
         temp_st[i] = 1;
     }
-    default_random_engine rd(time(nullptr) % 233);
+    default_random_engine rd(time(nullptr) % 233333333); //创建随机数引擎
     do {
-        shuffle(temp_st, temp_st + total, rd);//一直洗牌到这个方块不是地雷
+        shuffle(temp_st.begin(), temp_st.end(), rd); //一直洗牌到这个方块不是地雷 update
     } while (temp_st[board_width * (pos.Y - 1) + pos.X / 2 - 2]);
     int cc = 0;
     for (int i = 0; i < board_height; ++i) {
@@ -229,7 +242,7 @@ void gamer::init_mine() {
     }
     for (int i = 0; i < board_height; ++i) {  //标记数字 x轴
         for (int j = 0; j < board_width; ++j) {//y轴
-            if (st[j][i] == -1)continue;
+            if (st[j][i] == -1) continue;
             int cnt = 0;
             for (int k = 0; k < 8; ++k) {
                 int x = j + x_step[k], y = i + y_step[k];
@@ -243,27 +256,27 @@ void gamer::init_mine() {
 }
 
 void gamer::clearLine(int line) {
-    point(0, static_cast<short>(line));
-    for (int i = 0; i < width + 1; ++i) {
+    point(0, static_cast<short>(line));//光标定位到该行开头
+    for (int i = 0; i <= width; ++i) {
         putchar(' ');
     }
     point(0, static_cast<short>(line));
 }
 
 void gamer::open_it(int x, int y) {
-    if (used[x][y] == 1)return;
+    if (used[x][y] == 1)return;//已经翻开的就返回
     used[x][y] = 1;
     had_open++;
     int what = st[x][y];
-    if (what == -1) {
+    if (what == -1) {//点到雷了
         IS_LOSE = true;
         return;
     }
-    if (what == 0) {
+    if (what == 0) {//点到空的格子
         for (int i = 0; i < 8; ++i) {
             int x_nxt = x + x_step[i], y_nxt = y + y_step[i];
             if (is_in_board(x_nxt, y_nxt)) {
-                open_it(x_nxt, y_nxt);
+                open_it(x_nxt, y_nxt);//dfs
             }
         }
         return;
@@ -288,12 +301,13 @@ void gamer::you_are_win() {
 
     string who = "无名大侠";
     int index = 114514;
+
     //检查是否破第三名的记录
     restore_score_table();
     for (int i = 0; i < 3; ++i) {
         if (mine_seed[i] == mine_num) {
             for (int j = i * 3; j < i * 3 + 3; j++) {
-                if (score < scr[j]) {
+                if (score < scr[j]) {//冒泡排序 就冒一次
                     swap(score, scr[j]);
                     swap(who, name[j]);
                     index = min(j, index);
@@ -312,8 +326,8 @@ void gamer::you_are_win() {
 }
 
 void gamer::update() {
-    while (IS_NOW_BUSY);
-    IS_NOW_BUSY = true;
+    while (IS_NOW_BUSY);//计时器工作时 先中断
+    IS_NOW_BUSY = true;//等待到计时器空闲时间
     for (int i = 0; i < board_height; ++i) {
         point(0, static_cast<short>(i + 1));
         printf("    ");
@@ -336,6 +350,12 @@ void gamer::update() {
             putchar(' ');
         }
     }
+
+    //2022.1.19 update
+    // 右下角显示雷数
+    //point(static_cast<short>(width - 4), static_cast<short>(height - 2));
+    clearLine(height - 2);
+    printf("剩余雷数      %d", mine_num - sign_num);
     IS_NOW_BUSY = false;
 }
 
@@ -343,7 +363,7 @@ void gamer::quit_the_game_during_gaming(bool to_exit) {
     clearLine(board_height + 2);
     cout << "是否保存记录? yes  no   ";
     while (true) {
-        ReadConsoleInput(hInput, &inRec, 1, &numRead); /* 读取1个输入事件 */
+        ReadConsoleInput(hInput, &inRec, 1, &numRead);
         if (inRec.EventType == MOUSE_EVENT) {
             mouseInput();//等待
             if (pos.Y == board_height + 2) {
@@ -364,7 +384,6 @@ void gamer::quit_the_game_during_gaming(bool to_exit) {
 void gamer::exit_the_program() {
     clear();
     IS_TO_EXIT = true;
-    //exit(0);
 }
 
 void gamer::clear_game_state() {
@@ -373,14 +392,15 @@ void gamer::clear_game_state() {
     memset(used, 0, sizeof(used));
     IS_WIN = IS_LOSE = false;
     IS_OLD_GAME_EXIST = false;
-    had_open = 0;
+    had_open = 0; //！清空打开的格子书
 }
 
 void gamer::adjust_game_difficulty() {
     cout << endl
          << "     初级   9*9   10\n\n"
          << "     中级  16*16  40\n\n"
-         << "     高级  30*16  99\n\n";
+         << "     高级  30*16  99\n\n"
+         << "     自定义 ?*?    ?\n";//2022.1.19 update
     while (true) {
         ReadConsoleInput(hInput, &inRec, 1, &numRead); /* 读取1个输入事件 */
         if (inRec.EventType == MOUSE_EVENT) {
@@ -409,13 +429,58 @@ void gamer::adjust_game_difficulty() {
                 mine_num = 99;
                 return;
             }
+            //2022.1.19 update
+            if (pos.Y == 7) {
+                clear();
+                displayCursor();
+                cout << " Enter width(9~50):  ";
+                cin >> board_width;
+                while (cin.fail() or board_width < 9 or board_width > 50) {
+                    cin.clear();
+                    cin.ignore();
+                    message("please enter a correct number!");
+                    for (int i = 0; i <= height; i++)clearLine(i);
+                    point(0, 0);
+                    cout << " Enter width(9~50):  ";
+                    cin >> board_width;
+
+                }
+                cout << " Enter height(9~50): ";
+                cin >> board_height;
+                while (cin.fail() or board_height < 9 or board_height > 50) {
+                    cin.clear();
+                    cin.ignore();
+                    message("please enter a correct number!");
+                    for (int i = 1; i <= height; i++)clearLine(i);
+                    point(0, 1);
+                    cout << " Enter height(9~50): ";
+                    cin >> board_height;
+
+                }
+                cout << " Enter mine num:     ";
+                cin >> mine_num;
+                while (cin.fail() or mine_num <= 0 or mine_num >= board_height * board_width) {
+                    cin.clear();
+                    cin.ignore();
+                    message("please enter a correct number!");
+                    for (int i = 2; i <= height; i++)clearLine(i);
+                    point(0, 2);
+                    cout << " Enter mine num:     ";
+                    cin >> board_height;
+
+                }
+                width = static_cast<short>(board_width * 2 + 7);
+                height = static_cast<short>(board_height + 6);
+                hideCursor();
+                return;
+            }
         }
     }
 }
 
 
 bool gamer::store_game_static() {
-    ofstream fout(STATE_FILE);
+    /*ofstream fout(STATE_FILE);
     if (!fout.is_open())return false;
     fout << board_width << ' ' << board_height << ' ' << timer::get_time() << endl;
     for (int i = 0; i < board_height; ++i) {
@@ -430,12 +495,23 @@ bool gamer::store_game_static() {
             fout << used[j][i] << ' ';
         }
         fout << endl;
-    }
+    }*/
+
+    //2022.1.19 update
+    ofstream fout(STATE_FILE, ios::out | ios::binary);
+    double time = timer::get_time();
+    if (!fout.is_open())return false;
+    fout.write((const char *) &board_width, sizeof(board_width));
+    fout.write((const char *) &board_height, sizeof(board_height));
+    fout.write((const char *) &time, sizeof(time));
+    fout.write((const char *) st, sizeof(st));
+    fout.write((const char *) used, sizeof(used));
+
     return true;
 }
 
 bool gamer::restore_game_static() {
-    ifstream fin(STATE_FILE);
+    /*ifstream fin(STATE_FILE);
     double preTime;
     if (!fin.is_open())return false;
     fin >> board_width >> board_height >> preTime;
@@ -455,6 +531,32 @@ bool gamer::restore_game_static() {
             if (used[j][i] == 1)
                 had_open++;
         }
+    }*/
+
+    //2022.1.19 update
+    ifstream fin(STATE_FILE, ios::in | ios::binary);
+    double time;
+    if (!fin.is_open())return false;
+    fin.read((char *) &board_width, sizeof(board_width));
+    fin.read((char *) &board_height, sizeof(board_height));
+    fin.read((char *) &time, sizeof(time));
+    fin.read((char *) st, sizeof(st));
+    fin.read((char *) used, sizeof(used));
+
+    timer::resetTime(time);
+    mine_num = 0;
+    had_open = 0;
+    for (int i = 0; i < board_height; ++i) {
+        for (int j = 0; j < board_width; ++j) {
+            if (st[j][i] == -1)
+                mine_num++;
+        }
+    }
+    for (int i = 0; i < board_height; ++i) {
+        for (int j = 0; j < board_width; ++j) {
+            if (used[j][i] == 1)
+                had_open++;
+        }
     }
     width = static_cast<short>(board_width * 2 + 7);
     height = static_cast<short>(board_height + 6);
@@ -464,33 +566,29 @@ bool gamer::restore_game_static() {
 
 bool gamer::detect_static_is_exit() {
     // 注意！！！！
-    // 因为是按下第一次时才初始化 所以什么都不按就存储游戏状态存下来的是空游戏
-    // 盘 所以不能让用户什么都不点就存盘 这时候返回菜单就行了
+    // 因为是按下第一次时才初始化 所以什么都不按就存储游戏状态存下来的是空游戏盘
+    // 解决：所以不能让用户什么都不点就存盘 如果用户这时候点返回菜单就行了
     ifstream fin(STATE_FILE);
     if (!fin.is_open())return false;
     else return true;
 }
 
 void gamer::show_score_table() {
-    restore_score_table();
+    restore_score_table();//恢复排行榜
     int cnt = 0;
     for (auto &i: se) {
-        cout << endl << i << endl;
+        cout << endl << "         <" << i << ">" << endl;
         for (int j = 0; j < 3; ++j) {
             cout << j + 1 << '\t' << name[cnt] << '\t' << scr[cnt] << endl;
             cnt++;
         }
     }
-    mouseInput();
-}
-
-void gamer::create_file() {
-    ofstream fout(SCORE_FILE);
+    mouseInput();//pause
 }
 
 void gamer::restore_score_table() {
     ifstream fin(SCORE_FILE);
-    if (!detect_score_is_exit()) {
+    if (!detect_score_is_exit()) {//如果没有存在的文件 就初始化为最大
         init_to_max_score();
     }
     for (int i = 0; i < 9; ++i) {
@@ -512,10 +610,10 @@ void gamer::store_score_table() {
 void gamer::sign_it(int x, int y) {
     if (used[x][y] == 0) {//没有翻的格子
         used[x][y] = -1;
-        sign_num++;
+        ++sign_num;
     } else if (used[x][y] == -1) {
         used[x][y] = 0;
-        sign_num--;
+        --sign_num;
     }
 }
 
@@ -534,7 +632,10 @@ void gamer::timer_holder() {
         }
         //设置
         SetConsoleCursorPosition(hOutput, loc);
-        cout << timer::get_time();
+        //cout << timer::get_time();
+        //2022.1.19 update
+        printf("时间          %.2f", timer::get_time());
+
         IS_NOW_BUSY = false;
     }
 }
@@ -542,8 +643,8 @@ void gamer::timer_holder() {
 void gamer::end_it() {
     gamer::clear();
     cout <<
-         "                   \n"
-         "                   \n"
+         "    \n"
+         "            \n"
          " ■■■■■    ■■■■■\n"
          "    ■■         ■■  \n"
          "    ■■         ■■  \n"
@@ -551,18 +652,18 @@ void gamer::end_it() {
          "                   \n"
          "       ■    ■     \n"
          "        ■■■      \n"
-         "\n"
-         "\n"
-         "\n"
-         "\n"
-         "\n"
+         "            \n"
+         "        \n"
+         "     \n"
+         "  \n"
+         " \n"
          "     code by Satar07";//版权意识极强
     Sleep(500);
     exit(0);
 }
 
 void gamer::double_flip(int x, int y) {
-    if (used[x][y] == 0)return;
+    if (used[x][y] == 0)return;//如果没有翻开的话 就忽略
     int mine_around = 0, now_x, now_y;
     for (int i = 0; i < 8; ++i) {
         now_x = x + x_step[i];

@@ -1,6 +1,15 @@
-cmake_minimum_required(VERSION 3.19)
-project(gamer)
+cmake_minimum_required(VERSION 3.20)
+project(Minesweeper)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(gamer main.cpp gamer.cpp gamer.h baseheader.cpp baseheader.h timer.cpp timer.h)
+include_directories(.)
+
+add_executable(Minesweeper
+        baseheader.cpp
+        baseheader.h
+        gamer.cpp
+        gamer.h
+        main.cpp
+        timer.cpp
+        timer.h)
